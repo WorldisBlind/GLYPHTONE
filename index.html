@@ -482,8 +482,8 @@
     width: 100%;
   }
   .slot-seg{
-    border: 1px solid rgba(0,0,0,0.1);
-    background: rgba(255,255,255,0.55);
+    border: 1px solid transparent;
+    background: rgba(0,0,0,0.08);
     height: var(--ctrl-h);
     width: 100%;
     min-width: 0;
@@ -491,7 +491,7 @@
     display:flex;
     align-items:stretch;
     border-radius: 999px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+    box-shadow: none;
     transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     overflow: hidden;
   }
@@ -522,7 +522,7 @@
     text-overflow: ellipsis;
     transition: color 0.15s ease;
   }
-  .slot-seg:not(.active) .slot-label:hover{ background: rgba(255,255,255,0.5); }
+  .slot-seg:not(.active) .slot-label:hover{ background: rgba(0,0,0,0.16); }
   .slot-seg.active .slot-label{ color: #f5f4f1; }
   .slot-chain{
     flex: 0 0 auto;
@@ -671,9 +671,11 @@
     flex-direction: column;
     align-items:center;
     gap:8px;
+    width: 64px;
+    box-sizing: border-box;
     background: linear-gradient(160deg, var(--shell-hi), var(--shell) 60%, var(--shell-shadow) 140%);
     border-radius: 14px;
-    padding: 14px 12px 12px;
+    padding: 14px 8px 12px;
     box-shadow: 0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.08);
   }
   .volume-popup.open{ display:flex; }
@@ -682,6 +684,11 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     color: var(--muted-2);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .volume-popup input[type=range]{
     -webkit-appearance: slider-vertical;
@@ -771,7 +778,7 @@
         <section>
           <h3>Generate</h3>
           <p>Builds a new phrase using the mode selected in the dropdown next to it: Melody, Up, Down, Up+Down, Down+Up, Zigzag, Wave, Bounce, Random, or Drum. Picking a new mode previews it instantly — press Generate again to reroll a fresh variation.</p>
-          <p><b>Undo</b> reverts the last Generate or Clear. <b>Clear</b> empties the grid you're currently viewing.</p>
+          <p><b>Undo</b> reverts the last Generate or Clear — press it repeatedly to step back up to 5 times. <b>Clear</b> empties the grid you're currently viewing.</p>
         </section>
         <section>
           <h3>Scale &amp; Octave</h3>
@@ -819,7 +826,7 @@
         </div>
         <div class="transport-row util-btns">
           <button id="generateBtn" title="Generate a new phrase using the selected mode">Generate</button>
-          <button id="undoBtn" title="Undo the last Generate or Clear" disabled>Undo</button>
+          <button id="undoBtn" title="Undo the last Generate or Clear (up to 5 steps)" disabled>Undo</button>
           <button id="clearBtn" title="Clear the grid you're currently viewing">Clear</button>
           <div class="select-wrap">
             <select id="genMode" title="Generate mode: the shape of the phrase to build">
@@ -886,12 +893,12 @@
       </div>
     </div>
     <div class="instruments" id="instruments"></div>
-    <div class="volume-popup" id="volumePopup">
-      <div class="volume-popup-name" id="volumePopupName">BELL</div>
-      <input type="range" id="volumeFader" min="0" max="150" value="100" orient="vertical">
-      <div class="volume-popup-val mono"><span id="volumePopupVal">100</span>%</div>
-    </div>
   </div>
+</div>
+<div class="volume-popup" id="volumePopup">
+  <div class="volume-popup-name" id="volumePopupName">BELL</div>
+  <input type="range" id="volumeFader" min="0" max="150" value="100" orient="vertical">
+  <div class="volume-popup-val mono"><span id="volumePopupVal">100</span>%</div>
 </div>
 <script>
 function showError(msg) {
@@ -914,9 +921,16 @@ window.addEventListener('unhandledrejection', (e) => {
 function fitToScreen() {
   const stage = document.querySelector('.stage');
   if (!stage) return;
+  // Measure the true natural (unscaled) size without racing the CSS
+  // `transition: transform` on .stage: temporarily disable the transition
+  // and force a synchronous reflow before reading geometry, so the
+  // transform:none we just set is fully committed (not mid-interpolation)
+  // by the time getBoundingClientRect() runs.
+  stage.style.transition = 'none';
   stage.style.transform = 'none';
+  void stage.offsetHeight; // force layout flush
   const rect = stage.getBoundingClientRect();
-  if (!rect.width || !rect.height) return; // not laid out yet
+  if (!rect.width || !rect.height) { stage.style.transition = ''; return; } // not laid out yet
   const bodyStyle = getComputedStyle(document.body);
   const padX = parseFloat(bodyStyle.paddingLeft) + parseFloat(bodyStyle.paddingRight);
   const padY = parseFloat(bodyStyle.paddingTop) + parseFloat(bodyStyle.paddingBottom);
@@ -924,6 +938,8 @@ function fitToScreen() {
   const availH = window.innerHeight - padY;
   const scale = Math.min(1, availW / rect.width, availH / rect.height);
   stage.style.transform = scale < 0.999 ? `scale(${scale})` : 'none';
+  void stage.offsetHeight; // commit the new transform before restoring the transition
+  stage.style.transition = ''; // re-enable the CSS transition for subsequent (animated) changes
 }
 let fitToScreenRaf = null;
 function scheduleFitToScreen() {
@@ -1595,8 +1611,9 @@ try {
   function clearAll() {
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells[r][c].clear();
   }
-  // ---------- undo (single level) ----------
-  let undoSnapshot = null;
+  // ---------- undo (up to 5 levels) ----------
+  const UNDO_MAX = 5;
+  let undoStack = [];
   const undoBtn = document.getElementById('undoBtn');
   function snapshotGrid() {
     const rows = [];
@@ -1608,18 +1625,19 @@ try {
     return rows;
   }
   function pushUndoSnapshot() {
-    undoSnapshot = snapshotGrid();
+    undoStack.push(snapshotGrid());
+    if (undoStack.length > UNDO_MAX) undoStack.shift(); // keep only the most recent UNDO_MAX steps
     undoBtn.disabled = false;
   }
   function performUndo() {
-    if (!undoSnapshot) return;
+    if (undoStack.length === 0) return;
+    const snapshot = undoStack.pop();
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        cells[r][c] = new Set(undoSnapshot[r][c]);
+        cells[r][c] = new Set(snapshot[r][c]);
       }
     }
-    undoSnapshot = null;
-    undoBtn.disabled = true;
+    undoBtn.disabled = undoStack.length === 0;
     saveActiveSlotDebounced();
   }
   undoBtn.addEventListener('click', performUndo);
@@ -1897,7 +1915,14 @@ try {
     const faderIcon = btn.querySelector('.fader-icon');
     faderIcon.addEventListener('click', (e) => {
       e.stopPropagation(); // don't also trigger selectInstrument()
-      openVolumePopup(i, faderIcon);
+      // Tap this same fader icon again while its popup is already open (and
+      // untouched) to close it; tapping a different instrument's icon just
+      // switches the popup over to that instrument instead.
+      if (volumePopup.classList.contains('open') && volumePopupInst === i) {
+        closeVolumePopup();
+      } else {
+        openVolumePopup(i, faderIcon);
+      }
     });
     instEl.appendChild(btn);
     instButtons.push(btn);
@@ -1927,18 +1952,25 @@ try {
     volumePopup.style.top = top + 'px';
   }
   function closeVolumePopup() {
+    clearTimeout(volumePreviewTimer);
     volumePopup.classList.remove('open');
     volumePopupInst = null;
   }
   volumeFader.addEventListener('input', () => {
     if (volumePopupInst === null) return;
+    // Capture the instrument now: 'change' (fired on release) closes the popup
+    // and resets volumePopupInst to null, which can happen before this debounced
+    // preview timer fires if the user releases right after the last drag tick —
+    // reading the live volumePopupInst inside the timeout would then be null and
+    // crash playNote() with a non-finite gain value.
+    const instId = volumePopupInst;
     const pct = parseInt(volumeFader.value, 10);
     volumePopupVal.textContent = pct;
-    instrumentVolumes[volumePopupInst] = pct / 100;
+    instrumentVolumes[instId] = pct / 100;
     // light preview so you can hear the level while dragging, throttled
     clearTimeout(volumePreviewTimer);
     volumePreviewTimer = setTimeout(() => {
-      playNote(volumePopupInst, 7); // a mid-range row, just for the preview tone
+      playNote(instId, 7); // a mid-range row, just for the preview tone
     }, 120);
     saveActiveSlotDebounced();
   });
@@ -1948,11 +1980,15 @@ try {
     saveGlobalSettings();
     closeVolumePopup();
   });
-  // tapping anywhere outside the popup (and outside the palette buttons, so tapping
-  // a fader icon itself doesn't immediately close the popup it just opened) dismisses it
-  document.addEventListener('pointerdown', (e) => {
+  // Tapping anything else while the popup is open dismisses it: other transport/
+  // generate/song controls, the grid, and even an instrument's own name/dot (to
+  // select it). The fader icons handle their own open/close/switch above and
+  // stop the click from bubbling here, so they're not double-handled.
+  // Uses 'click' (not 'pointerdown') so it fires strictly after the fader
+  // icon's own click handler has already run for this same event.
+  document.addEventListener('click', (e) => {
     if (volumePopupInst === null) return;
-    if (volumePopup.contains(e.target) || instEl.contains(e.target)) return;
+    if (volumePopup.contains(e.target)) return;
     closeVolumePopup();
   });
   // ---------- MIDI export ----------
@@ -2201,7 +2237,7 @@ try {
     }, 150);
   }
   function loadSlotIntoGrid(n) {
-    undoSnapshot = null;
+    undoStack = [];
     undoBtn.disabled = true;
     let raw = null;
     try { raw = localStorage.getItem(slotStorageKey(n)); } catch (err) { /* ignore */ }
