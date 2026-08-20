@@ -2,7 +2,7 @@
 
 ブラウザで動作する16×16のステップシーケンサーです。単一のHTMLファイルとして動作するので、インストール不要でそのまま開いて使えます。
 
-**デモ:** https://<ユーザー名>.github.io/<リポジトリ名>/ (GitHub Pages公開後にこの行を差し替えてください)
+https://worldisblind.github.io/GLYPHTONE/
 
 ## 特徴
 
