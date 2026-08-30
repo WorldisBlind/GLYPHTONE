@@ -294,7 +294,9 @@
     flex-direction:column;
     gap:2px;
     flex: 1 1 64px;
-    min-width: 60px;
+    min-width: 36px; /* was 60px — on narrow phones this, plus the swing control's own
+                         60px floor, added up to more than the row actually had room
+                         for, pushing the swing slider past the device's right edge */
     max-width: var(--tempo-max);
   }
   .tempo .val{
@@ -324,7 +326,7 @@
     flex-direction:column;
     gap:2px;
     flex: 1 1 64px;
-    min-width: 60px;
+    min-width: 36px; /* was 60px — see .tempo's min-width comment */
     max-width: var(--tempo-max);
   }
   .swing-ctrl .val{
@@ -900,8 +902,8 @@
               <button id="octaveUp" aria-label="Octave up" title="Shift up one octave">+</button>
             </div>
           </div>
-          <button id="wavBtn" title="Render and export the current pattern as a WAV audio file">Export WAV</button>
-          <button id="midiBtn" title="Export the current pattern as a Standard MIDI File">Export MIDI</button>
+          <button id="wavBtn" title="Render and export the current pattern as a WAV audio file">WAV</button>
+          <button id="midiBtn" title="Export the current pattern as a Standard MIDI File">MIDI</button>
         </div>
         <div class="transport-row song-row">
           <div class="memory-group">
