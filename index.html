@@ -174,6 +174,40 @@
     letter-spacing: 0.04em;
     color: var(--ink);
   }
+  .help-header-right{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    flex-shrink:0;
+  }
+  .help-lang-toggle{
+    display:flex;
+    align-items:center;
+    background: rgba(0,0,0,0.08);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 1px;
+  }
+  .help-lang-btn{
+    border:none;
+    background: transparent;
+    color: var(--muted-2);
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing:0.04em;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    cursor:pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .help-lang-btn:not(.active):hover{ background: rgba(0,0,0,0.06); }
+  .help-lang-btn.active{
+    background: var(--shell-hi);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
   .help-close{
     width: 26px;
     height: 26px;
@@ -805,47 +839,16 @@
   <div class="help-overlay" id="helpOverlay">
     <div class="help-modal">
       <div class="help-header">
-        <span class="help-title">How to use GLYPHTONE</span>
-        <button id="helpCloseBtn" class="help-close" aria-label="Close">&#10005;</button>
+        <span class="help-title" id="helpTitle">How to use GLYPHTONE</span>
+        <div class="help-header-right">
+          <div class="help-lang-toggle" id="helpLangToggle">
+            <button class="help-lang-btn" data-lang="en" type="button">EN</button>
+            <button class="help-lang-btn" data-lang="ja" type="button">日本語</button>
+          </div>
+          <button id="helpCloseBtn" class="help-close" aria-label="Close">&#10005;</button>
+        </div>
       </div>
-      <div class="help-body">
-        <section>
-          <h3>Grid</h3>
-          <p>Tap a cell to place a note there. Tap it again to remove it. The playhead sweeps left to right as it plays.</p>
-        </section>
-        <section>
-          <h3>Solo / Ensemble</h3>
-          <p><b>Solo</b> — one timbre per cell. Switching the selected instrument recolors your whole pattern instead of stacking a new sound on top.</p>
-          <p><b>Ensemble</b> — layer multiple timbres in the same cell, one on top of another.</p>
-        </section>
-        <section>
-          <h3>Transport</h3>
-          <p><b>▶</b> Play / Stop. <b>Tempo</b> sets the BPM. <b>Swing</b> delays every other 16th note for a looser, groovier feel.</p>
-          <p>GLYPHTONE plays sound even if your device's silent switch is on — the same as Music or GarageBand — so it's still audible in a quiet room. Use the volume buttons to control how loud.</p>
-        </section>
-        <section>
-          <h3>Generate</h3>
-          <p>Builds a new phrase using the mode selected in the dropdown next to it: Melody, Up, Down, Up+Down, Down+Up, Zigzag, Wave, Bounce, Random, or Drum. Picking a new mode previews it instantly — press Generate again to reroll a fresh variation.</p>
-          <p><b>Undo</b> reverts the last Generate or Clear — press it repeatedly to step back up to 5 times. <b>Clear</b> empties the grid you're currently viewing; hold it down instead of tapping to clear all 4 bars at once.</p>
-        </section>
-        <section>
-          <h3>Scale &amp; Octave</h3>
-          <p><b>Scale</b> changes the notes' pitches without moving where they're placed. <b>Octave</b> (±2) transposes everything up or down.</p>
-        </section>
-        <section>
-          <h3>Song parts</h3>
-          <p>The four numbered buttons (<b>1–4</b>) are your four bars — separate patterns you can switch between, each holding its own grid and auto-saving as you edit. Tap a number to view/edit that bar.</p>
-          <p>Tap the small <b>&#128279; chain icon</b> on the right of a bar to mark it for chained playback. With one or more bars chain-marked, playback cycles through just those bars in order, looping back to the first. With nothing chain-marked, playback simply loops whichever bar you're currently viewing.</p>
-        </section>
-        <section>
-          <h3>Export</h3>
-          <p><b>Export WAV</b> renders the current pattern to an audio file. <b>Export MIDI</b> saves it as a Standard MIDI File you can import into a DAW.</p>
-        </section>
-        <section>
-          <h3>Instruments</h3>
-          <p>Tap an instrument to select it for placing notes. Tap the small fader icon on the right of each one to open a popup and adjust that instrument's volume.</p>
-        </section>
-      </div>
+      <div class="help-body" id="helpBody"></div>
     </div>
   </div>
   <div class="device">
@@ -1013,7 +1016,108 @@ if (document.fonts && document.fonts.ready) {
   const helpBtn = document.getElementById('helpBtn');
   const helpOverlay = document.getElementById('helpOverlay');
   const helpCloseBtn = document.getElementById('helpCloseBtn');
-  if (!helpBtn || !helpOverlay || !helpCloseBtn) return;
+  const helpTitleEl = document.getElementById('helpTitle');
+  const helpBodyEl = document.getElementById('helpBody');
+  if (!helpBtn || !helpOverlay || !helpCloseBtn || !helpBodyEl) return;
+  // ---------- manual content, English + Japanese ----------
+  const HELP_CONTENT = {
+    en: {
+      title: 'How to use GLYPHTONE',
+      sections: [
+        { h: 'Grid', p: [
+          'Tap a cell to place a note there. Tap it again to remove it. The playhead sweeps left to right as it plays.',
+        ] },
+        { h: 'Solo / Ensemble', p: [
+          '<b>Solo</b> — one timbre per cell. Switching the selected instrument recolors your whole pattern instead of stacking a new sound on top.',
+          '<b>Ensemble</b> — layer multiple timbres in the same cell, one on top of another.',
+        ] },
+        { h: 'Transport', p: [
+          '<b>▶</b> Play / Stop. <b>Tempo</b> sets the BPM. <b>Swing</b> delays every other 16th note for a looser, groovier feel.',
+          "GLYPHTONE plays sound even if your device's silent switch is on — the same as Music or GarageBand — so it's still audible in a quiet room. Use the volume buttons to control how loud.",
+        ] },
+        { h: 'Generate', p: [
+          'Builds a new phrase using the mode selected in the dropdown next to it: Melody, Up, Down, Up+Down, Down+Up, Zigzag, Wave, Bounce, Random, or Drum. Picking a new mode previews it instantly — press Generate again to reroll a fresh variation.',
+          '<b>Undo</b> reverts the last Generate or Clear — press it repeatedly to step back up to 5 times. <b>Clear</b> empties the grid you\'re currently viewing; hold it down instead of tapping to clear all 4 bars at once.',
+        ] },
+        { h: 'Scale &amp; Octave', p: [
+          "<b>Scale</b> changes the notes' pitches without moving where they're placed. <b>Octave</b> (±2) transposes everything up or down.",
+        ] },
+        { h: 'Song parts', p: [
+          'The four numbered buttons (<b>1–4</b>) are your four bars — separate patterns you can switch between, each holding its own grid and auto-saving as you edit. Tap a number to view/edit that bar.',
+          'Tap the small <b>&#128279; chain icon</b> on the right of a bar to mark it for chained playback. With one or more bars chain-marked, playback cycles through just those bars in order, looping back to the first. With nothing chain-marked, playback simply loops whichever bar you\'re currently viewing.',
+        ] },
+        { h: 'Export', p: [
+          '<b>Export WAV</b> renders the current pattern to an audio file. <b>Export MIDI</b> saves it as a Standard MIDI File you can import into a DAW.',
+        ] },
+        { h: 'Instruments', p: [
+          "Tap an instrument to select it for placing notes. Tap the small fader icon on the right of each one to open a popup and adjust that instrument's volume.",
+        ] },
+      ],
+    },
+    ja: {
+      title: 'GLYPHTONEの使い方',
+      sections: [
+        { h: 'グリッド', p: [
+          'マスをタップすると、そこに音を置けます。もう一度タップすると消えます。再生中は再生位置(プレイヘッド)が左から右へ動きます。',
+        ] },
+        { h: 'ソロ / アンサンブル', p: [
+          '<b>ソロ</b> — 1マスにつき1つの音色だけを置けるモードです。選んでいる楽器を切り替えると、今あるパターン全体の音色が入れ替わります(重ねがけにはなりません)。',
+          '<b>アンサンブル</b> — 1マスに複数の音色を重ねて配置できるモードです。',
+        ] },
+        { h: 'トランスポート', p: [
+          '<b>▶</b> 再生/停止です。<b>Tempo(テンポ)</b>でBPMを設定します。<b>Swing(スイング)</b>は16分音符を1つおきに少し遅らせて、揺れのあるグルーヴ感を出します。',
+          'サイレントスイッチをオンにしていても、MusicアプリやGarageBandと同じように音は鳴ります。静かな場所でも聞こえるのでご注意ください。音量は本体の音量ボタンで調整できます。',
+        ] },
+        { h: 'Generate(自動生成)', p: [
+          '隣のドロップダウンで選んだモード(Melody, Up, Down, Up+Down, Down+Up, Zigzag, Wave, Bounce, Random, Drumのいずれか)で、新しいフレーズを自動生成します。モードを変えると即座にプレビューされ、Generateをもう一度押すと別のパターンに作り直せます。',
+          '<b>Undo</b>は直前のGenerateまたはClearを取り消します(最大5回まで連続で戻せます)。<b>Clear</b>は今見ているバーだけを空にします。タップの代わりに長押しすると、4つのバー全部を一度に空にできます。',
+        ] },
+        { h: 'Scale &amp; Octave(スケールとオクターブ)', p: [
+          '<b>Scale(スケール)</b>は、音を置いた位置は変えずに音の高さの並びを変えます。<b>Octave(オクターブ)</b>(±2)は全体の音の高さを1オクターブ単位で上下させます。',
+        ] },
+        { h: 'バー(小節)', p: [
+          '数字ボタン(<b>1〜4</b>)が4つのバーです。それぞれ別々のパターンを持っていて、切り替えながら作曲でき、編集内容は自動的に保存されます。番号をタップすると、そのバーを表示/編集できます。',
+          'バーの右にある小さな<b>&#128279;チェーンアイコン</b>をタップすると、そのバーを連続再生の対象としてマークできます。1つ以上マークされていると、マークされたバーだけを順番に再生し、最後まで行くと最初に戻ってループします。何もマークされていない場合は、今表示しているバーだけをそのままループ再生します。',
+        ] },
+        { h: 'Export(書き出し)', p: [
+          '<b>Export WAV</b>は今のパターンを音声ファイルとして書き出します。<b>Export MIDI</b>はStandard MIDI File(DAWに読み込める形式)として書き出します。',
+        ] },
+        { h: '楽器', p: [
+          '楽器をタップすると、その音色が音を置くときに選ばれます。各楽器の右にある小さなフェーダーアイコンをタップすると、その楽器の音量を調整するポップアップが開きます。',
+        ] },
+      ],
+    },
+  };
+  const HELP_LANG_KEY = 'glyphtone:helpLang';
+  function loadHelpLang() {
+    try {
+      const saved = localStorage.getItem(HELP_LANG_KEY);
+      if (saved === 'en' || saved === 'ja') return saved;
+    } catch (err) { /* ignore */ }
+    // No saved preference yet — default to Japanese for Japanese-locale devices,
+    // English everywhere else.
+    return (navigator.language || '').toLowerCase().startsWith('ja') ? 'ja' : 'en';
+  }
+  let helpLang = loadHelpLang();
+  function renderHelp() {
+    const data = HELP_CONTENT[helpLang] || HELP_CONTENT.en;
+    helpTitleEl.textContent = data.title;
+    helpBodyEl.innerHTML = data.sections.map((s) =>
+      `<section><h3>${s.h}</h3>${s.p.map((p) => `<p>${p}</p>`).join('')}</section>`
+    ).join('');
+    document.querySelectorAll('.help-lang-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.lang === helpLang);
+    });
+  }
+  document.querySelectorAll('.help-lang-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.lang === helpLang) return;
+      helpLang = btn.dataset.lang;
+      try { localStorage.setItem(HELP_LANG_KEY, helpLang); } catch (err) { /* ignore */ }
+      renderHelp();
+    });
+  });
+  renderHelp();
   const openHelp = () => {
     helpOverlay.classList.add('open');
     const vp = document.getElementById('volumePopup');
