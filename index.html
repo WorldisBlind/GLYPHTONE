@@ -45,6 +45,12 @@
   body{
     margin:0;
     height:100vh;
+    /* iOS/Android address bars shrink and grow the *visible* viewport without
+       changing 100vh (which is pinned to the largest, bar-hidden height). That
+       mismatch is what let content sit partly behind the browser chrome. dvh
+       tracks the actual visible viewport, so it's layered on top as a
+       progressive enhancement (older browsers keep the 100vh above). */
+    height:100dvh;
     background:
       radial-gradient(1200px 700px at 50% -10%, #1c1c22 0%, var(--bg) 55%, var(--bg-2) 100%);
     color: var(--ink);
@@ -53,12 +59,16 @@
     align-items:center;
     justify-content:center;
     padding: 32px 16px;
+    overflow:hidden;
   }
   .mono{ font-family:'JetBrains Mono', monospace; }
   .stage{
     transform-origin: center center;
     transition: transform 0.15s ease;
     width: 100%;
+    min-width: 0; /* body's default flex row would otherwise floor .stage at its
+                     content's min-content width instead of letting it shrink
+                     to fit narrow phone screens */
     max-width: var(--stage-max);
     display:flex;
     flex-direction:column;
@@ -383,6 +393,24 @@
     text-overflow: ellipsis;
   }
   .util-btns button:hover{ background: rgba(0,0,0,0.16); }
+  /* Hold-to-confirm progress fill for the Clear button: holding it down sweeps
+     this overlay left-to-right over the hold duration; a quick tap snaps it
+     back instantly instead of finishing the sweep. */
+  #clearBtn{ position: relative; }
+  #clearBtn::after{
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    background: rgba(0,0,0,0.22);
+    border-radius: inherit;
+    transition: width 0.15s ease;
+    pointer-events: none;
+  }
+  #clearBtn.holding::after{
+    width: 100%;
+    transition: width 650ms linear;
+  }
   .mode-toggle{
     display:flex;
     align-items:center;
@@ -542,19 +570,22 @@
   .slot-seg.active .slot-chain{ color: rgba(255,255,255,0.5); }
   .slot-seg.active .slot-chain:hover{ background: rgba(255,255,255,0.15); }
   /* Chained = ON: fill the whole icon cell with a solid color so the state reads
-     at a glance. The fill color mirrors the current Solo/Ensemble mode — blue
-     in Solo, gold in Ensemble — same palette as the mode-toggle buttons. */
-  .slot-chain.chained{
+     at a glance. The fill color mirrors THAT bar's own Solo/Ensemble setting —
+     blue for Solo, gold for Ensemble — same palette as the mode-toggle buttons.
+     (mode-solo/mode-ensemble are kept in sync with each bar's own saved mode by
+     refreshSlotModeColors(), independent of whichever bar is active/viewed.) */
+  .slot-chain.mode-solo.chained{
     color: #f4faff;
     background: linear-gradient(135deg, #4fa3e0, #2c7ec2);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
   }
-  .slot-chain.chained:hover{ background: linear-gradient(135deg, #5cb0ea, #3a8bd6); }
-  .slot-btns.ensemble-mode .slot-chain.chained{
+  .slot-chain.mode-solo.chained:hover{ background: linear-gradient(135deg, #5cb0ea, #3a8bd6); }
+  .slot-chain.mode-ensemble.chained{
     color: #2a1e08;
     background: linear-gradient(135deg, #e0ab3f, #c2861f);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
   }
-  .slot-btns.ensemble-mode .slot-chain.chained:hover{ background: linear-gradient(135deg, #eab857, #d4941f); }
+  .slot-chain.mode-ensemble.chained:hover{ background: linear-gradient(135deg, #eab857, #d4941f); }
   #scaleSelect{
     width: 100%;
     min-width: 0;
@@ -620,6 +651,10 @@
     display:flex;
     align-items:center;
     gap:7px;
+    min-width: 0; /* grid items default to min-width:auto, which — combined with the
+                     nowrap instrument-name text below — kept these columns from
+                     shrinking below their content width and let them spill past
+                     the device's right edge on narrow phones. */
     border: 1px solid rgba(0,0,0,0.1);
     background: rgba(255,255,255,0.35);
     border-radius: 11px;
@@ -778,7 +813,7 @@
         <section>
           <h3>Generate</h3>
           <p>Builds a new phrase using the mode selected in the dropdown next to it: Melody, Up, Down, Up+Down, Down+Up, Zigzag, Wave, Bounce, Random, or Drum. Picking a new mode previews it instantly — press Generate again to reroll a fresh variation.</p>
-          <p><b>Undo</b> reverts the last Generate or Clear — press it repeatedly to step back up to 5 times. <b>Clear</b> empties the grid you're currently viewing.</p>
+          <p><b>Undo</b> reverts the last Generate or Clear — press it repeatedly to step back up to 5 times. <b>Clear</b> empties the grid you're currently viewing; hold it down instead of tapping to clear all 4 bars at once.</p>
         </section>
         <section>
           <h3>Scale &amp; Octave</h3>
@@ -827,7 +862,7 @@
         <div class="transport-row util-btns">
           <button id="generateBtn" title="Generate a new phrase using the selected mode">Generate</button>
           <button id="undoBtn" title="Undo the last Generate or Clear (up to 5 steps)" disabled>Undo</button>
-          <button id="clearBtn" title="Clear the grid you're currently viewing">Clear</button>
+          <button id="clearBtn" title="Clear the grid you're currently viewing. Hold to clear all 4 bars.">Clear</button>
           <div class="select-wrap">
             <select id="genMode" title="Generate mode: the shape of the phrase to build">
               <option value="melody" selected>Melody</option>
@@ -948,6 +983,15 @@ function scheduleFitToScreen() {
 }
 window.addEventListener('resize', scheduleFitToScreen);
 window.addEventListener('orientationchange', scheduleFitToScreen);
+// Mobile browsers grow/shrink the visible viewport as the address bar and
+// bottom toolbar show or hide (e.g. after a scroll or rotation) without
+// always firing a plain 'resize' event, or firing it late. visualViewport
+// reports that change immediately, so refitting on it keeps the app from
+// ending up scaled for a viewport size that no longer applies.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scheduleFitToScreen);
+  window.visualViewport.addEventListener('scroll', scheduleFitToScreen);
+}
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(scheduleFitToScreen).catch(() => {});
 }
@@ -1569,6 +1613,24 @@ try {
       cells: gridData,
     };
   }
+  // The settings a bar starts with before it's ever been saved — used to reset
+  // a never-touched bar to real defaults instead of leaking the previously
+  // viewed bar's tempo/scale/mode/instrument/swing/octave into it.
+  function defaultState() {
+    const gridData = [];
+    for (let r = 0; r < ROWS; r++) gridData.push(new Array(COLS).fill(null).map(() => []));
+    return {
+      app: 'glyphtone',
+      version: 1,
+      bpm: 80,
+      scale: 'major',
+      ensembleMode: false,
+      currentInstrument: 0,
+      swingAmount: 0,
+      octaveShift: 0,
+      cells: gridData,
+    };
+  }
   function applyState(data) {
     if (!data || !Array.isArray(data.cells)) throw new Error('Invalid saved data');
     clearAll();
@@ -1592,7 +1654,6 @@ try {
       soloBtn.classList.toggle('active', !ensembleMode);
       ensembleBtn.classList.toggle('active', ensembleMode);
       ticksEl.classList.toggle('ensemble-mode', ensembleMode);
-      slotBtnsEl.classList.toggle('ensemble-mode', ensembleMode);
     }
     if (typeof data.currentInstrument === 'number' && INSTRUMENTS[data.currentInstrument]) {
       currentInstrument = data.currentInstrument;
@@ -1641,7 +1702,38 @@ try {
     saveActiveSlotDebounced();
   }
   undoBtn.addEventListener('click', performUndo);
-  document.getElementById('clearBtn').addEventListener('click', () => {
+  const clearBtn = document.getElementById('clearBtn');
+  // A normal tap clears only the bar you're viewing (unchanged). Holding the
+  // button down for CLEAR_ALL_HOLD_MS instead clears every one of the 4 bars —
+  // see clearAllBars() further down, defined once the per-slot storage helpers
+  // (SLOT_COUNT, slotStorageKey, defaultState, refreshSlotModeColors) exist.
+  const CLEAR_ALL_HOLD_MS = 650;
+  let clearHoldTimer = null;
+  let clearAllJustTriggered = false;
+  function startClearHold() {
+    clearAllJustTriggered = false;
+    clearBtn.classList.add('holding');
+    clearHoldTimer = setTimeout(() => {
+      clearAllJustTriggered = true;
+      clearBtn.classList.remove('holding');
+      clearAllBars();
+    }, CLEAR_ALL_HOLD_MS);
+  }
+  function cancelClearHold() {
+    clearTimeout(clearHoldTimer);
+    clearBtn.classList.remove('holding');
+  }
+  clearBtn.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // primary button/touch only
+    startClearHold();
+  });
+  clearBtn.addEventListener('pointerup', cancelClearHold);
+  clearBtn.addEventListener('pointerleave', cancelClearHold);
+  clearBtn.addEventListener('pointercancel', cancelClearHold);
+  clearBtn.addEventListener('click', () => {
+    // The long-press already handled clearing everything for this same
+    // press — skip the trailing click so we don't also run a single-bar clear.
+    if (clearAllJustTriggered) { clearAllJustTriggered = false; return; }
     pushUndoSnapshot();
     clearAll();
     saveActiveSlotDebounced();
@@ -1650,7 +1742,6 @@ try {
   let ensembleMode = false;
   const soloBtn = document.getElementById('soloBtn');
   const ensembleBtn = document.getElementById('ensembleBtn');
-  const slotBtnsEl = document.getElementById('slotBtns'); // recolored blue/gold to match Solo/Ensemble mode
   // In Solo mode a cell holds exactly one instrument. When the selected instrument
   // changes, every already-placed note is recolored to the new instrument so the
   // pattern shape stays put while the timbre updates.
@@ -1669,17 +1760,17 @@ try {
     soloBtn.classList.add('active');
     ensembleBtn.classList.remove('active');
     ticksEl.classList.remove('ensemble-mode');
-    slotBtnsEl.classList.remove('ensemble-mode');
     recolorSoloCells(); // collapse any stacked ensemble notes down to one timbre
     saveActiveSlotDebounced();
+    refreshSlotModeColors();
   });
   ensembleBtn.addEventListener('click', () => {
     ensembleMode = true;
     ensembleBtn.classList.add('active');
     soloBtn.classList.remove('active');
     ticksEl.classList.add('ensemble-mode');
-    slotBtnsEl.classList.add('ensemble-mode');
     saveActiveSlotDebounced();
+    refreshSlotModeColors();
   });
   // Curated pool used only in Ensemble mode for pitched (non-drum) generators.
   const LEAD_POOL = [0, 1, 2, 4, 5];      // BELL, PIANO, ORGAN, BRASS, LEAD
@@ -2187,6 +2278,32 @@ try {
   const slotStorageKey = (n) => 'glyphtone:slot:' + n;
   let activeSlot = parseInt(localStorage.getItem(ACTIVE_SLOT_KEY) || '1', 10);
   if (!(activeSlot >= 1 && activeSlot <= SLOT_COUNT)) activeSlot = 1;
+  // ---------- per-bar Solo/Ensemble mode indicator ----------
+  // Each bar already saves and restores its own Solo/Ensemble setting (see
+  // serializeState/applyState). Color each bar's number to match that bar's
+  // OWN saved mode — blue for Solo, gold for Ensemble — regardless of which
+  // bar is currently active, so all 4 always show their real settings at a glance.
+  function readSlotEnsembleMode(n) {
+    if (n === activeSlot) return ensembleMode; // authoritative in-memory value for the bar being edited right now
+    try {
+      const raw = localStorage.getItem(slotStorageKey(n));
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (typeof data.ensembleMode === 'boolean') return data.ensembleMode;
+      }
+    } catch (err) { /* ignore — default to Solo below */ }
+    return false;
+  }
+  function refreshSlotModeColors() {
+    // Colors each bar's chain-mark icon (when chained) to match THAT bar's own
+    // saved Solo/Ensemble setting — blue for Solo, gold for Ensemble.
+    document.querySelectorAll('.slot-chain').forEach((btn) => {
+      const n = parseInt(btn.dataset.slot, 10);
+      const isEnsemble = readSlotEnsembleMode(n);
+      btn.classList.toggle('mode-solo', !isEnsemble);
+      btn.classList.toggle('mode-ensemble', isEnsemble);
+    });
+  }
   // ---------- per-bar chain marks ----------
   // Each bar button (1 BAR..4 BAR) has its own small chain icon on the right.
   // Bars with the chain mark on play back together, in ascending order, looping
@@ -2244,7 +2361,26 @@ try {
     if (raw) {
       try { applyState(JSON.parse(raw)); return; } catch (err) { /* fall through to empty */ }
     }
-    clearAll(); // unused slot — start from an empty grid
+    applyState(defaultState()); // unused slot — start fresh with default settings, not the previous bar's
+  }
+  // Long-press on Clear (see the clearBtn wiring above) — wipes every one of
+  // the 4 bars, not just the one currently being viewed.
+  function clearAllBars() {
+    // Cancel any pending per-slot autosaves first: without this, a save that
+    // was already scheduled for another bar could fire a moment later and
+    // silently rewrite that bar's pre-clear data right back into storage.
+    for (const key in saveDebounceTimers) {
+      clearTimeout(saveDebounceTimers[key]);
+      delete saveDebounceTimers[key];
+    }
+    for (let n = 1; n <= SLOT_COUNT; n++) {
+      try { localStorage.removeItem(slotStorageKey(n)); } catch (err) { /* ignore */ }
+    }
+    undoStack = [];
+    undoBtn.disabled = true;
+    applyState(defaultState()); // reset the currently active bar's grid + settings too
+    refreshSlotModeColors(); // every bar is fresh/Solo now
+    saveActiveSlotDebounced();
   }
   function refreshSlotButtons() {
     document.querySelectorAll('.slot-seg').forEach((btn) => {
@@ -2257,6 +2393,7 @@ try {
     try { localStorage.setItem(ACTIVE_SLOT_KEY, String(activeSlot)); } catch (err) { /* ignore */ }
     loadSlotIntoGrid(n);
     refreshSlotButtons();
+    refreshSlotModeColors();
   }
   // Tap a bar's label to view/edit it.
   document.querySelectorAll('.slot-label').forEach((btn) => {
@@ -2276,6 +2413,7 @@ try {
   refreshSlotButtons();
   refreshChainButtons();
   loadSlotIntoGrid(activeSlot);
+  refreshSlotModeColors();
   // grid starts empty — no seed pattern on load
   fitToScreen(); // scale the whole app down to fit the window right away, on first paint
 } catch (err) {
