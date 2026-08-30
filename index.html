@@ -40,7 +40,17 @@
     --inst-pad: var(--inst-pad-v) var(--inst-pad-h);
     --tempo-max: clamp(130px, calc(58.6px + 19.05vw), 230px);
   }
-  *{ box-sizing: border-box; }
+  *{
+    box-sizing: border-box;
+    /* This is a native app now, not a web page of text — nothing here is meant
+       to be selected/copied. Without this, a long-press on any button (the
+       same gesture the app uses for "hold Clear to reset all bars") is caught
+       by iOS as a text-selection request instead, popping up the Copy/Look Up
+       callout over the button. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
   html,body{ height:100%; overflow:hidden; }
   body{
     margin:0;
@@ -811,6 +821,7 @@
         <section>
           <h3>Transport</h3>
           <p><b>▶</b> Play / Stop. <b>Tempo</b> sets the BPM. <b>Swing</b> delays every other 16th note for a looser, groovier feel.</p>
+          <p>GLYPHTONE plays sound even if your device's silent switch is on — the same as Music or GarageBand — so it's still audible in a quiet room. Use the volume buttons to control how loud.</p>
         </section>
         <section>
           <h3>Generate</h3>
@@ -823,7 +834,7 @@
         </section>
         <section>
           <h3>Song parts</h3>
-          <p>Four bars (1 BAR–4 BAR) each hold their own pattern and auto-save as you edit. Tap a bar's name to view/edit it.</p>
+          <p>The four numbered buttons (<b>1–4</b>) are your four bars — separate patterns you can switch between, each holding its own grid and auto-saving as you edit. Tap a number to view/edit that bar.</p>
           <p>Tap the small <b>&#128279; chain icon</b> on the right of a bar to mark it for chained playback. With one or more bars chain-marked, playback cycles through just those bars in order, looping back to the first. With nothing chain-marked, playback simply loops whichever bar you're currently viewing.</p>
         </section>
         <section>
@@ -898,7 +909,7 @@
           <div class="octave-group" title="Octave shift: transpose playback up or down by octaves.">
             <div class="octave-stepper">
               <button id="octaveDown" aria-label="Octave down" title="Shift down one octave">&#8722;</button>
-              <span id="octaveVal" class="mono">OCT 0</span>
+              <span id="octaveVal" class="mono">OCT</span>
               <button id="octaveUp" aria-label="Octave up" title="Shift up one octave">+</button>
             </div>
           </div>
@@ -909,19 +920,19 @@
           <div class="memory-group">
             <div class="slot-btns" id="slotBtns">
               <div class="slot-seg active" data-slot="1">
-                <button class="slot-label" data-slot="1" title="Bar 1 — tap to view/edit this bar.">1 BAR</button>
+                <button class="slot-label" data-slot="1" title="Bar 1 — tap to view/edit this bar.">1</button>
                 <button class="slot-chain" data-slot="1" aria-label="Include bar 1 in chained playback" title="Include bar 1 in chained playback"><svg class="chain-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
               </div>
               <div class="slot-seg" data-slot="2">
-                <button class="slot-label" data-slot="2" title="Bar 2 — tap to view/edit this bar.">2 BAR</button>
+                <button class="slot-label" data-slot="2" title="Bar 2 — tap to view/edit this bar.">2</button>
                 <button class="slot-chain" data-slot="2" aria-label="Include bar 2 in chained playback" title="Include bar 2 in chained playback"><svg class="chain-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
               </div>
               <div class="slot-seg" data-slot="3">
-                <button class="slot-label" data-slot="3" title="Bar 3 — tap to view/edit this bar.">3 BAR</button>
+                <button class="slot-label" data-slot="3" title="Bar 3 — tap to view/edit this bar.">3</button>
                 <button class="slot-chain" data-slot="3" aria-label="Include bar 3 in chained playback" title="Include bar 3 in chained playback"><svg class="chain-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
               </div>
               <div class="slot-seg" data-slot="4">
-                <button class="slot-label" data-slot="4" title="Bar 4 — tap to view/edit this bar.">4 BAR</button>
+                <button class="slot-label" data-slot="4" title="Bar 4 — tap to view/edit this bar.">4</button>
                 <button class="slot-chain" data-slot="4" aria-label="Include bar 4 in chained playback" title="Include bar 4 in chained playback"><svg class="chain-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
               </div>
             </div>
@@ -1394,12 +1405,12 @@ try {
     if (n === 0) {
       ctx.beginPath();
       ctx.fillStyle = '#4a4950';
-      ctx.arc(x, y, 4.6, 0, Math.PI * 2);
+      ctx.arc(x, y, 7.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
       ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
-      ctx.arc(x, y, 4.6, 0, Math.PI * 2);
+      ctx.arc(x, y, 7.5, 0, Math.PI * 2);
       ctx.stroke();
       return;
     }
@@ -1411,13 +1422,13 @@ try {
       ctx.shadowBlur = 12;
       ctx.beginPath();
       ctx.fillStyle = color;
-      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.arc(x, y, 14, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       return;
     }
-    const orbit = Math.min(10, 5 + n * 0.5);
-    const subR = Math.max(3, 6.5 - n * 0.25);
+    const orbit = Math.min(13, 7 + n * 0.6);
+    const subR = Math.max(5, 9.5 - n * 0.3);
     insts.forEach((inst, i) => {
       const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
       const sx = x + Math.cos(angle) * orbit;
@@ -1583,7 +1594,7 @@ try {
   let octaveShift = 0; // -2..+2
   const octaveValEl = document.getElementById('octaveVal');
   function refreshOctaveDisplay() {
-    octaveValEl.textContent = 'OCT ' + (octaveShift > 0 ? ('+' + octaveShift) : String(octaveShift));
+    octaveValEl.textContent = octaveShift === 0 ? 'OCT' : (octaveShift > 0 ? ('+' + octaveShift) : String(octaveShift));
   }
   document.getElementById('octaveUp').addEventListener('click', () => {
     octaveShift = Math.min(2, octaveShift + 1);
@@ -2105,7 +2116,55 @@ try {
   const u16be = (n) => [(n >>> 8) & 0xff, n & 0xff];
   const MIDI_DRUM_CHANNEL = 9;
   const clampMidi = (n) => Math.max(0, Math.min(127, n));
-  function exportMIDI() {
+  // ---------- save/share a generated file (WAV or MIDI) ----------
+  // In a regular browser tab, the classic Blob + <a download> trick works fine.
+  // Inside the native app shell (Capacitor/WKWebView) there is no "Downloads"
+  // folder and clicking a blob: link silently does nothing, which is why WAV/MIDI
+  // export looked broken there. When running natively we instead write the bytes
+  // to the app's own sandboxed storage via the Filesystem plugin, then hand that
+  // file to iOS's native share sheet (Share plugin) so the person can save it to
+  // Files, AirDrop it, etc. — the standard way apps hand out files on iOS.
+  function isNativeApp() {
+    return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+  }
+  function bytesToBase64(bytes) {
+    let binary = '';
+    const chunkSize = 0x8000; // process in chunks — String.fromCharCode(...bytes) blows
+                               // the call stack once a WAV file gets past a few hundred KB
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+  async function saveOrDownloadFile(bytes, filename, mimeType) {
+    const plugins = window.Capacitor && window.Capacitor.Plugins;
+    if (isNativeApp() && plugins && plugins.Filesystem && plugins.Share) {
+      const { Filesystem, Share } = plugins;
+      // Plain 'CACHE' string instead of the Filesystem plugin's Directory.Cache enum:
+      // that enum is a named export of the @capacitor/filesystem JS *module*, which
+      // this plain-script page never imports — only the plugin proxies themselves
+      // (Filesystem, Share) are exposed on window.Capacitor.Plugins. Reading
+      // Directory.Cache off an undefined Directory is exactly what threw
+      // "undefined is not an object". 'CACHE' is that enum's actual string value.
+      const written = await Filesystem.writeFile({
+        path: filename,
+        data: bytesToBase64(bytes),
+        directory: 'CACHE',
+      });
+      await Share.share({ title: filename, url: written.uri, dialogTitle: 'Save ' + filename });
+      return;
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function exportMIDI() {
     const PPQ = 480;
     const ticksPerStep = PPQ / 4;
     const microsPerQuarter = Math.round(60000000 / bpm);
@@ -2154,19 +2213,11 @@ try {
     const header = [...strBytes('MThd'), ...u32be(6), ...u16be(0), ...u16be(1), ...u16be(PPQ)];
     const trackChunk = [...strBytes('MTrk'), ...u32be(track.length), ...track];
     const fileBytes = new Uint8Array([...header, ...trackChunk]);
-    const blob = new Blob([fileBytes], { type: 'audio/midi' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'glyphtone-pattern.mid';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await saveOrDownloadFile(fileBytes, 'glyphtone-pattern.mid', 'audio/midi');
   }
-  document.getElementById('midiBtn').addEventListener('click', () => {
+  document.getElementById('midiBtn').addEventListener('click', async () => {
     try {
-      exportMIDI();
+      await exportMIDI();
     } catch (err) {
       showError('MIDI export failed: ' + err.message);
     }
@@ -2248,16 +2299,8 @@ try {
       noiseBuffer = liveNoiseBuffer;
       renderingOffline = false;
     }
-    const wavBytes = audioBufferToWav(renderedBuffer);
-    const blob = new Blob([wavBytes], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'glyphtone-pattern.wav';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const wavBytes = new Uint8Array(audioBufferToWav(renderedBuffer));
+    await saveOrDownloadFile(wavBytes, 'glyphtone-pattern.wav', 'audio/wav');
   }
   document.getElementById('wavBtn').addEventListener('click', async () => {
     const btn = document.getElementById('wavBtn');
